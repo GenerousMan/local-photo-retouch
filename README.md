@@ -14,8 +14,15 @@
 
 ## 安装
 
-1. 下载本项目，将整个文件夹命名为 `local-photo-retouch`，放到 `~/.codex/skills/`。
-2. 在 Codex 中开始新对话，上传照片并调用 `$local-photo-retouch`。
+将本项目安装到 Codex 的技能目录
+
+```bash
+git clone https://github.com/GenerousMan/local-photo-retouch.git ~/.codex/skills/local-photo-retouch
+```
+
+也可以[下载 ZIP](https://github.com/GenerousMan/local-photo-retouch/archive/refs/heads/main.zip)，解压后将文件夹命名为 `local-photo-retouch`，放到 `~/.codex/skills/`。
+
+在 Codex 中开始新对话，上传照片并调用 `$local-photo-retouch`。
 
 需要 Python 3.9+，依赖列在 [requirements.txt](requirements.txt) 中。可以让 Codex 在虚拟环境中安装。局部内容生成还需要可用的 `imagegen` 技能和图像编辑工具。
 
