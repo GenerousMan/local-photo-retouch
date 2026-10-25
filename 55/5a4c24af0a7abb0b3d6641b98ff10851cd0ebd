@@ -1,0 +1,21 @@
+.gitignore
+  s_22a5143be93427::t_f4972d9b9fb91c 1-8
+README.md
+  s_22a5143be93427::t_13c89e2f4f3bbf 17-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "555a4c24af0a7abb0b3d6641b98ff10851cd0ebd",
+  "prompts": {},
+  "sessions": {
+    "s_22a5143be93427": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d96b-0359-74d3-ad02-1c2394bc2ba3",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ji Juntao <21073949+GenerousMan@users.noreply.github.com>"
+    }
+  }
+}
