@@ -1,0 +1,38 @@
+README.md
+  s_22a5143be93427::t_bcd97d557fb061 10,35-36,43
+SKILL.md
+  s_22a5143be93427::t_bcd97d557fb061 3,8,10,43,45,49
+  s_22a5143be93427::t_b67dd9c95a9a4c 50
+references/color-tools.md
+  s_22a5143be93427::t_bcd97d557fb061 7-8,49,58,63-64
+scripts/color_grade.py
+  s_22a5143be93427::t_0f3bf6285435ae 206
+  s_22a5143be93427::t_8cc2a15624e5c3 2,14,33,35-36,85-104,213-256,277,280,286-288,290-291,314-318
+assets/color-recipes/neutral.json
+  s_22a5143be93427::t_8cc2a15624e5c3 8-9
+agents/openai.yaml
+  s_22a5143be93427::t_bcd97d557fb061 3-4
+references/color-cookbook.md
+  s_22a5143be93427::t_bcd97d557fb061 55,67,91,103
+references/global-color.md
+  s_22a5143be93427::t_bcd97d557fb061 11-12,29,35
+references/spatial-color.md
+  s_22a5143be93427::t_bcd97d557fb061 1-54,56-65
+  s_22a5143be93427::t_0f3bf6285435ae 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "0b8fd2c7a9071b9efbb1718a08424cb8fcdf631c",
+  "prompts": {},
+  "sessions": {
+    "s_22a5143be93427": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d96b-0359-74d3-ad02-1c2394bc2ba3",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Ji Juntao <21073949+GenerousMan@users.noreply.github.com>"
+    }
+  }
+}
