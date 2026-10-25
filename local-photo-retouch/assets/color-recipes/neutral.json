@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "description": "中性起点。按当前照片与用户目标修改；保持这些参数时为逐像素无变化。",
+  "exposure_ev": 0,
+  "linear_rgb_gains": [1, 1, 1],
+  "l_curve": [[0, 0], [100, 100]],
+  "saturation": 1,
+  "color_adjustments": []
+}

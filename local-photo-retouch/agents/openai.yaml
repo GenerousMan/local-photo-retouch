@@ -1,0 +1,4 @@
+interface:
+  display_name: "照片精修与调色"
+  short_description: "局部蒙版精修与常规调色，保留原尺寸，校验修改范围并展示实际处理前后的对比"
+  default_prompt: "请使用 $local-photo-retouch 根据照片和我的要求完成精修或调色，保留原尺寸；局部内容修改使用蒙版拼接与校验，整体调色使用常规处理，并按实际完成的阶段提供前后对比。"
