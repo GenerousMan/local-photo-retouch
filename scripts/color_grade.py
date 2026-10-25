@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic global color grading and comparison of actual editing stages."""
+"""Deterministic global and masked color grading with editing-stage comparisons."""
 import argparse
 import hashlib
 import importlib.metadata
@@ -11,7 +11,7 @@ import platform
 
 import numpy as np
 from PIL import Image, ImageCms, ImageDraw, ImageFont
-from retouch import read_photo, checked_box, check_new, save_png, save_json, digest
+from retouch import read_photo, read_mask, checked_box, check_new, save_png, save_json, digest
 
 
 def runtime_versions():
@@ -30,8 +30,10 @@ def number(value, name, low, high):
     return float(value)
 
 
-def normalize_recipe(raw):
+def normalize_recipe(raw, allow_regions=True):
     allowed = {'version', 'description', 'exposure_ev', 'linear_rgb_gains', 'l_curve', 'saturation', 'color_adjustments'}
+    if allow_regions:
+        allowed.add('regions')
     if not isinstance(raw, dict) or set(raw) - allowed:
         raise ValueError('Recipe contains unknown fields or is not an object.')
     if type(raw.get('version')) is not int or raw['version'] != 1:
@@ -80,6 +82,26 @@ def normalize_recipe(raw):
             e[channel + '_offset'] = number(e.get(channel + '_offset', 0), channel + '_offset', -64, 64)
         normalized.append(e)
     r['color_adjustments'] = normalized
+    if allow_regions:
+        regions = r.get('regions', [])
+        if not isinstance(regions, list):
+            raise ValueError('regions must be a list.')
+        normalized_regions = []
+        for region in regions:
+            if not isinstance(region, dict) or set(region) - {'name', 'mask', 'opacity', 'adjustments'}:
+                raise ValueError('Unknown region fields.')
+            name, mask = region.get('name', ''), region.get('mask')
+            if not isinstance(name, str) or not isinstance(mask, str) or not mask.strip():
+                raise ValueError('Each region requires a mask path and an optional text name.')
+            adjustments = region.get('adjustments', {})
+            if not isinstance(adjustments, dict):
+                raise ValueError('Region adjustments must be an object.')
+            normalized_regions.append({
+                'name': name, 'mask': mask,
+                'opacity': number(region.get('opacity', 1), 'region opacity', 0, 1),
+                'adjustments': normalize_recipe({'version': 1, **adjustments}, allow_regions=False),
+            })
+        r['regions'] = normalized_regions
     return r
 
 
@@ -181,11 +203,55 @@ def sample_stats(image):
     # Stride sampling preserves actual encoded values; no image resizing in diagnostics.
     step = max(1, int(math.ceil(math.sqrt(image.width*image.height/500000))))
     a = np.asarray(image.convert('RGB'))[::step, ::step]
-    y = a @ np.array([0.2126, 0.7152, 0.0722])
+    y = a[:, :, 0] * 0.2126 + a[:, :, 1] * 0.7152 + a[:, :, 2] * 0.0722
     return {'sample_stride': step, 'sample_pixels': int(y.size),
             'encoded_luma_quantiles_0_1_50_99_100': np.quantile(y,[0,.01,.5,.99,1]).tolist(),
             'any_channel_at_0_percent': float(np.any(a==0,axis=2).mean()*100),
             'any_channel_at_255_percent': float(np.any(a==255,axis=2).mean()*100)}
+
+
+def load_regions(recipe, recipe_path, source_size, working_size):
+    regions = []
+    for settings in recipe['regions']:
+        path = Path(settings['mask'])
+        if not path.is_absolute():
+            path = Path(recipe_path).resolve().parent / path
+        mask = read_mask(path, source_size)
+        report = {
+            'name': settings['name'], 'mask': str(path.resolve()), 'mask_sha256': digest(path),
+            'source_mask_size': list(mask.size), 'working_mask_size': list(working_size),
+            'opacity': settings['opacity'], 'active_pixels': 0, 'changed_pixels': 0,
+            'exposure_or_gain_clipped_pixels_before_blending': 0,
+            'out_of_srgb_gamut_pixels_before_blending': 0,
+        }
+        if mask.size != working_size:
+            mask = mask.resize(working_size, Image.Resampling.BILINEAR)
+        regions.append((settings, mask, report))
+    return regions
+
+
+def grade_regions(base, regions, box):
+    """Apply ordered masked adjustments to an already globally graded block."""
+    result = base.copy()
+    support = np.zeros(base.shape[:2], dtype=bool)
+    for settings, mask, report in regions:
+        weight = np.asarray(mask.crop(box), dtype=np.float32) / 255 * settings['opacity']
+        active = weight > 0
+        support |= active
+        report['active_pixels'] += int(np.count_nonzero(active))
+        if not np.any(active) or is_identity(settings['adjustments']):
+            continue
+        before = result[active]
+        # Process selected pixels only; clipping counts exclude protected areas.
+        adjusted, clipped, gamut = grade_rgb(before[:, None, :], settings['adjustments'])
+        alpha = weight[active, None]
+        blended = np.rint(before * (1 - alpha) + adjusted[:, 0, :] * alpha).astype(np.uint8)
+        result[active] = blended
+        report['changed_pixels'] += int(np.count_nonzero(np.any(before != blended, axis=1)))
+        report['exposure_or_gain_clipped_pixels_before_blending'] += clipped
+        report['out_of_srgb_gamut_pixels_before_blending'] += gamut
+    outside_changes = int(np.count_nonzero(np.any(result != base, axis=2) & ~support))
+    return result, outside_changes
 
 
 def grade_photo(source, recipe_path, output, preview_max_edge=None, profile_policy='require-srgb', assume_srgb=False, jpeg=None):
@@ -208,14 +274,21 @@ def grade_photo(source, recipe_path, output, preview_max_edge=None, profile_poli
             raise ValueError('preview-max-edge must be positive.')
         src.thumbnail((preview_max_edge,preview_max_edge),Image.Resampling.LANCZOS)
         metadata.pop('exif',None)
+    regions = load_regions(recipe, recipe_path, raw.size, src.size)
     result = Image.new('RGB',src.size)
     exposure_clipped = gamut_clipped = 0
+    outside_region_changes = 0
     for top in range(0,src.height,384):
         box = (0,top,src.width,min(top+384,src.height))
         block, count1, count2 = grade_rgb(np.asarray(src.crop(box).convert('RGB')),recipe)
         exposure_clipped += count1
         gamut_clipped += count2
+        if regions:
+            block, outside_changes = grade_regions(block, regions, box)
+            outside_region_changes += outside_changes
         result.paste(Image.fromarray(block),(0,top))
+    if outside_region_changes:
+        raise ValueError('Spatial grading changed pixels outside the region masks.')
     if src.mode == 'RGBA':
         result.putalpha(src.getchannel('A'))
     save_png(result,output,**metadata)
@@ -238,6 +311,11 @@ def grade_photo(source, recipe_path, output, preview_max_edge=None, profile_poli
        'before':sample_stats(src),'after':sample_stats(result),
        'exposure_or_gain_clipped_pixel_percent':exposure_clipped/(src.width*src.height)*100,
        'out_of_srgb_gamut_pixel_percent':gamut_clipped/(src.width*src.height)*100,
+       'regions':[report for _, _, report in regions],
+       'region_order':'Listed order, after the global pass; overlapping adjustments accumulate.',
+       'outside_region_union_changed_pixels':outside_region_changes if regions else None,
+       'region_preservation_baseline':'Global-graded sRGB working image before regional adjustments.',
+       'clipping_stats_scope':'Top-level percentages describe the global pass. Region counts describe selected candidates before opacity blending.',
        'scope':'Checks establish encoding and pixel mapping, not aesthetic quality. Inspect skin, highlights, shadows and color transitions.'}
     save_json(report,report_path)
     return {'output':str(output),'report':str(report_path),'size':list(result.size),'preview':report['preview']}

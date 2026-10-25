@@ -52,7 +52,7 @@
 
 **验收：** 暗部不变成大块无纹理黑色；脸部阴影与高光过渡连续；没有为追求通透而产生硬轮廓。单调曲线可避免亮度次序反转，但仍需检查色域裁切。
 
-**工具：** 脚本 `l_curve` 可调明暗；需要空间层次时使用曲线调整层配蒙版。Lab L* 曲线与 Photoshop RGB 曲线的输出并不相同。
+**工具：** 脚本 `l_curve` 可调明暗；需要空间层次时将曲线放入 `regions` 的区域参数并配合蒙版。Lab L* 曲线与 Photoshop RGB 曲线的输出并不相同。
 
 **官方依据：** [Adobe Curves](https://helpx.adobe.com/photoshop/desktop/adjust-color/color-corrections/adjust-color-and-tone-with-curves.html) 解释控制点和曲线斜率对明暗、对比的影响。
 
@@ -64,7 +64,7 @@
 
 **验收：** 目标颜色不过分抢眼，相邻色过渡平滑；受保护对象保持合理颜色。检查选区边缘和有色噪点，避免过窄阈值造成斑驳。
 
-**工具：** 脚本支持 Lab 颜色范围和 a*/b* 增量；需要精确 HSL、Point Color 或对象限定时使用具备这些功能的工具。
+**工具：** 脚本支持 Lab 颜色范围和 a*/b* 增量，对象范围可由 `regions` 的空间蒙版限定；需要精确 HSL 或 Point Color 时使用具备这些功能的工具。
 
 **官方示例：** Adobe 文档以过于鲜艳、分散注意力的红色物体说明 Red Saturation，同时指出同类颜色会一并受到影响。参阅 [Color Mixer](https://helpx.adobe.com/uk/lightroom-classic/desktop/process-and-develop-photos/color-mixer.html)。
 
@@ -88,7 +88,7 @@
 
 **验收：** 在接近实际观看大小及局部放大时检查：脸、耳、颈不脱节；明暗仍形成体积；皮肤没有变成统一色块；背景同色物体保持目标状态。
 
-**工具：** 使用常规蒙版、调整层或局部调色工具。脚本的 Lab 颜色范围不识别人脸，无法独立保证只改肤色；本条需要额外空间蒙版工作流。
+**工具：** 使用脚本 `regions` 配合实际绘制或分割的空间蒙版，再按需叠加 Lab 颜色范围。蒙版制作、参数格式与执行见 [spatial-color.md](spatial-color.md)；脚本不自动识别人脸。
 
 **官方依据：** Adobe [Masking](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/masking.html) 支持人物、画笔、颜色范围、亮度范围以及蒙版组合。本条的肤色检查方法为综合建议，不将统一肤色值视为官方标准。
 
@@ -100,7 +100,7 @@
 
 **验收：** 不同区域有合理关系，接缝没有色环；自然光向仍成立。需要强烈局部修正时重新检查全局基准是否选错。
 
-**工具：** 常规画笔、渐变蒙版及局部调整。全图颜色阈值可能同时选到多个不同光源下的物体，不足以替代空间判断。
+**工具：** 常规画笔、渐变蒙版及局部调整，也可将光照区域保存为灰度蒙版交给脚本 `regions`。全图颜色阈值可能同时选到多个不同光源下的物体，不足以替代空间判断。
 
 **官方示例：** Adobe 的暮色建筑教程通过画笔分别调整窗户的暖光与曝光。它演示局部光色控制；是否采用暖光效果由当前目标决定。参阅 [Add warm light to dark photos](https://www.adobe.com/learn/lightroom-cc/web/correct-white-balance)。
 
